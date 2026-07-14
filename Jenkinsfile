@@ -1,29 +1,52 @@
 pipeline {
     agent any
 
-    environment {
-        PATH = "/usr/bin:/bin:/opt/homebrew/bin"
-    }
-
     stages {
 
-        stage('pull scm git') {
+        stage('Build') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/PraveenKuber/Amazon-Jenkins.git'
+                sh 'mvn clean compile'
             }
         }
 
-        stage('compile') {
+        stage('Test') {
             steps {
-                sh 'mvn compile'
+                sh 'mvn test'
             }
         }
 
-        stage('build') {
+        stage('Package') {
             steps {
-                sh 'mvn clean install'
+                sh 'mvn package'
             }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'Amazon-Web/target/*.war', fingerprint: true
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploy stage - add SSH deployment here'
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                echo 'Health check - add curl command here'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully'
+        }
+
+        failure {
+            echo 'Pipeline failed'
         }
     }
 }
