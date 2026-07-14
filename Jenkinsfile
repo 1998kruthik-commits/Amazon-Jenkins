@@ -4,7 +4,6 @@ pipeline {
 
     environment {
         VM_IP = "20.98.72.32"
-        SSH_CREDENTIAL = "azure-vm"
         REMOTE_USER = "azureuser"
     }
 
@@ -13,6 +12,33 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Debug') {
+            steps {
+                echo "===== DEBUG INFORMATION ====="
+
+                sh '''
+                echo "Current Directory:"
+                pwd
+
+                echo ""
+                echo "Workspace Contents:"
+                ls -la
+
+                echo ""
+                echo "Finding pom.xml files:"
+                find . -name pom.xml
+
+                echo ""
+                echo "Java Version:"
+                java -version
+
+                echo ""
+                echo "Maven Version:"
+                mvn -version
+                '''
             }
         }
 
@@ -51,18 +77,16 @@ pipeline {
 
         stage('Deploy') {
             steps {
-
                 sshagent(credentials: ['azure-vm']) {
 
                     sh '''
-
-                    echo "===== COPYING WAR ====="
+                    echo "===== COPYING WAR TO VM ====="
 
                     scp -o StrictHostKeyChecking=no \
                     Amazon-Web/target/*.war \
                     ${REMOTE_USER}@${VM_IP}:/tmp/Amazon.war
 
-                    echo "===== DEPLOYING ====="
+                    echo "===== DEPLOYING APPLICATION ====="
 
                     ssh -o StrictHostKeyChecking=no \
                     ${REMOTE_USER}@${VM_IP} << EOF
@@ -71,49 +95,43 @@ pipeline {
 
                     sudo systemctl restart tomcat10
 
-                    EOF
+                    exit
 
+EOF
                     '''
-
                 }
-
             }
         }
 
         stage('Health Check') {
-
             steps {
-
                 sh '''
-
-                echo "Waiting for Tomcat..."
+                echo "===== HEALTH CHECK ====="
 
                 sleep 20
 
                 curl -I http://${VM_IP}:8080/Amazon/
-
                 '''
-
             }
-
         }
-
     }
 
     post {
 
         success {
-
-            echo "Pipeline Successful"
-
+            echo "===================================="
+            echo "Pipeline Completed Successfully"
+            echo "===================================="
         }
 
         failure {
-
+            echo "===================================="
             echo "Pipeline Failed"
-
+            echo "===================================="
         }
 
+        always {
+            echo "Pipeline Execution Finished"
+        }
     }
-
 }
